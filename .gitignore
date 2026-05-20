@@ -1,0 +1,23 @@
+# Environment
+.env
+
+# Dependencies
+.venv/
+
+# Runtime / build artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+.ruff_cache/
+
+# Data (tokens, SQLite DB)
+data/
+
+# Docs (local only)
+docs/
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
