@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 
@@ -19,3 +21,54 @@ def load_activities(snapshot_dir: str) -> list[dict]:
             if activity_id not in activities:
                 activities[activity_id] = activity
     return list(activities.values())
+
+
+@dataclass(frozen=True)
+class WeekStats:
+    week: str
+    activity_count: int
+    total_distance_km: float
+    total_moving_time_min: float
+    avg_pace_min_per_km: float
+    avg_heart_rate: float | None
+
+
+def week_key(start_date_local: str) -> str:
+    """Map an ISO-8601 start time to its ISO week label, e.g. '2026-W24'."""
+    parsed = datetime.fromisoformat(start_date_local.replace("Z", "+00:00"))
+    iso_year, iso_week, _ = parsed.isocalendar()
+    return f"{iso_year}-W{iso_week:02d}"
+
+
+def weekly_aggregates(activities: list[dict]) -> dict[str, WeekStats]:
+    """Group activities by ISO week and compute summary stats per week.
+
+    Pace is total moving time divided by total distance (min/km). Average heart rate is
+    the mean of per-activity averages, ignoring activities with no HR; None if none have it.
+    """
+    buckets: dict[str, list[dict]] = {}
+    for activity in activities:
+        buckets.setdefault(week_key(activity["start_date_local"]), []).append(activity)
+
+    stats: dict[str, WeekStats] = {}
+    for week, items in buckets.items():
+        total_distance_km = sum(a["distance"] for a in items) / 1000
+        total_moving_time_min = sum(a["moving_time"] for a in items) / 60
+        avg_pace = (
+            total_moving_time_min / total_distance_km if total_distance_km > 0 else 0.0
+        )
+        hrs = [
+            a["average_heartrate"]
+            for a in items
+            if a.get("average_heartrate") is not None
+        ]
+        avg_hr = sum(hrs) / len(hrs) if hrs else None
+        stats[week] = WeekStats(
+            week=week,
+            activity_count=len(items),
+            total_distance_km=round(total_distance_km, 2),
+            total_moving_time_min=round(total_moving_time_min, 1),
+            avg_pace_min_per_km=round(avg_pace, 2),
+            avg_heart_rate=round(avg_hr, 1) if avg_hr is not None else None,
+        )
+    return stats
