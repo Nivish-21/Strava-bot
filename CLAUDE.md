@@ -6,25 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python venv: `.venv/` in project root (Python 3.11.13). Activate with `source .venv/bin/activate` before running anything. Confirm with `which python`.
 
-Required env vars (`.env`):
-```
-TELEGRAM_BOT_TOKEN=
-STRAVA_CLIENT_ID=
-STRAVA_SECRET=
-OLLAMA_URL=http://localhost:11434   # default
-OLLAMA_MODEL=gemma4:4b              # default
-```
-
-Ollama must be running locally with the target model pulled (`ollama pull gemma4:4b`).
+No `.env` is required for normal operation — Strava access is handled by the official
+Strava MCP via OAuth (see `CHECKIN.md`). The legacy Telegram/Ollama bot's env vars
+(`TELEGRAM_BOT_TOKEN`, `STRAVA_CLIENT_ID`, `STRAVA_SECRET`, `OLLAMA_*`) are only relevant
+to the retired code in `legacy/`.
 
 ## Commands
 
 ```bash
-# Run the bot
-python bot.py
+# Run the test suite
+pytest -v
 
-# One-time OAuth setup (run separately, not needed once tokens are stored)
-uvicorn auth_server:app --port 8000
+# Compute weekly stats from stored snapshots (see CHECKIN.md for the full flow)
+python -c "import analytics, json; print(json.dumps({k: vars(v) for k, v in sorted(analytics.weekly_aggregates(analytics.load_activities('data/activities')).items())}, indent=2))"
 
 # Install deps
 pip install -r requirements.txt
@@ -34,26 +28,36 @@ black .
 ruff check .
 ```
 
-No test suite exists yet.
-
 ## Architecture
 
-Single-process async Telegram bot. Three components wired together in `bot.py`:
+Claude-direct training check-ins. There is no bot and no local LLM — you run a check-in
+inside a Claude Code session. Three pieces:
 
-**`strava.py` — `StravaClient`**  
-Async context manager wrapping the Strava v3 REST API. Handles token refresh transparently on 401: `get_activities()` retries itself once after calling `refresh()`. Tokens are passed in at construction; the client does not persist them — the caller (`bot.py`) owns state.
+**Strava MCP (external, already installed)**
+The official `claude.ai Strava` MCP (`https://mcp.strava.com/mcp`) is the data source.
+Authenticate once via OAuth (`mcp__claude_ai_Strava__authenticate` →
+`mcp__claude_ai_Strava__complete_authentication`); a free Strava account is sufficient.
+Claude fetches activities directly through it.
 
-**`ollama_client.py` — `OllamaClient`**  
-Async context manager for the Ollama `/api/generate` endpoint. Non-streaming. Model and base URL are constructor params, overridable via env.
+**`analytics.py` — deterministic maths**
+Pure functions, standard library only, fully unit-tested (`tests/test_analytics.py`):
+- `load_activities(dir)` — read and dedupe stored snapshot JSON by activity id.
+- `week_key(start)` / `weekly_aggregates(activities)` — per-ISO-week count, distance,
+  moving time, average pace, average heart rate (`WeekStats`).
+- `trend(weekly)` — compare the latest week against the mean of prior weeks (`Trend`).
+The numbers come from here so they are never hallucinated.
 
-**`bot.py` — Telegram bot**  
-`user_tokens` is an in-memory `dict` keyed by Telegram user ID — **tokens are lost on restart**. `structure.md` notes SQLite (`data/tokens.db`) as the intended persistence layer but it is not implemented. All handlers follow the same pattern: check `user_tokens`, open `StravaClient`, format activity data, open `OllamaClient`, send LLM output back.
-
-**`auth_server.py`**  
-One-shot FastAPI server used only during initial Strava OAuth setup. Not part of normal operation. Exchanges the OAuth code for tokens and displays them for the user to paste into Telegram via `/token`.
+**`coach.md` — persona; `CHECKIN.md` — runbook**
+`coach.md` frames every check-in as a hybrid strength-and-endurance coach (one priority
+fix, plain language). `CHECKIN.md` is the operational runbook: authenticate, fetch,
+store snapshots to `data/activities/`, compute, interpret. It also defines the bake-off
+(Python-computed numbers vs Claude-computed numbers) used to decide the default path.
 
 ## Key Constraints
 
-- `user_tokens` is process-local; any multi-instance deployment will lose tokens. Migrate to SQLite before scaling.
-- `StravaClient.get_activities()` has unbounded recursion on repeated 401s — add a retry limit before exposing to untrusted tokens.
-- `auth_server.py` returns raw access/refresh tokens in an HTML response. Treat as a dev tool only.
+- The split between maths (Python, deterministic) and judgement (Claude, coach persona)
+  is the core reliability fix — keep computed figures out of free-text generation.
+- The old Telegram + Ollama system lives in `legacy/` (retained, unused). `data/tokens.db`
+  is leftover from it and is no longer used.
+- Snapshots in `data/activities/` accumulate so trends work across weeks without
+  re-fetching history; `data/` is gitignored.
