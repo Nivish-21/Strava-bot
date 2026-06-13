@@ -3,6 +3,8 @@
 _Revised June 2026 from your Strava data: zone-2 base rebuild after a 5-month grey-zone
 plateau, sequenced around a current tibialis (shin) strain._
 
+_Last updated: 14 Jun 2026. The PDF regenerates automatically whenever this file changes._
+
 ## ⚠️ Read first — current shin strain
 Front-of-shin muscle (tibialis anterior) tight after cold max broad-jumps; lifting the
 foot up is restricted. Until it moves freely and is pain-free:
