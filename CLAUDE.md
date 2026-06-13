@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python venv: `.venv/` in project root (Python 3.11.13). Activate with `source .venv/bin/activate` before running anything. Confirm with `which python`.
 
-No `.env` is required for normal operation — Strava access is handled by the official
-Strava MCP via OAuth (see `CHECKIN.md`). The legacy Telegram/Ollama bot's env vars
-(`TELEGRAM_BOT_TOKEN`, `STRAVA_CLIENT_ID`, `STRAVA_SECRET`, `OLLAMA_*`) are only relevant
-to the retired code in `legacy/`.
+`.env` must contain `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` from your free Strava
+API application (developers.strava.com). These drive the direct-API OAuth in
+`strava_auth.py` / `strava_fetch.py` (see `CHECKIN.md`). The legacy bot's other env vars
+(`TELEGRAM_BOT_TOKEN`, `OLLAMA_*`) are only relevant to the retired code in `legacy/`.
 
 ## Commands
 
@@ -33,11 +33,12 @@ ruff check .
 Claude-direct training check-ins. There is no bot and no local LLM — you run a check-in
 inside a Claude Code session. Three pieces:
 
-**Strava MCP (external, already installed)**
-The official `claude.ai Strava` MCP (`https://mcp.strava.com/mcp`) is the data source.
-Authenticate once via OAuth (`mcp__claude_ai_Strava__authenticate` →
-`mcp__claude_ai_Strava__complete_authentication`); a free Strava account is sufficient.
-Claude fetches activities directly through it.
+**`strava_api.py` + CLIs — free direct Strava API**
+The data source is the free Strava v3 API (no paid MCP, no subscription). `strava_api.py`
+is stdlib-only: OAuth helpers, automatic token refresh, activity fetch, snapshot writing,
+with unit-tested pure helpers (`tests/test_strava_api.py`). `strava_auth.py` does the
+one-time browser OAuth (saving tokens to `data/strava_tokens.json`); `strava_fetch.py`
+pulls recent activities into `data/activities/`. Requires `STRAVA_CLIENT_ID`/`SECRET`.
 
 **`analytics.py` — deterministic maths**
 Pure functions, standard library only, fully unit-tested (`tests/test_analytics.py`):

@@ -2,18 +2,31 @@
 
 How to run a check-in in a Claude Code session. No bot, no Ollama.
 
+Data comes from the **free Strava v3 API** using your own app credentials
+(`STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` in `.env`). No paid MCP, no subscription.
+
 ## One-time setup: authenticate Strava
-1. Call the MCP tool `mcp__claude_ai_Strava__authenticate`.
-2. Open the returned authorisation URL, approve access (a free Strava account is fine).
-3. Pass the redirected `localhost/callback?...` URL to
-   `mcp__claude_ai_Strava__complete_authentication`.
-The Strava tools then become available for the session.
+Prerequisite: at developers.strava.com → your API application, the
+**Authorization Callback Domain** must be `localhost`.
+
+```bash
+source .venv/bin/activate
+python strava_auth.py                 # prints an authorise URL
+# Open it, click Authorize. The browser redirects to a localhost URL that fails to
+# load — that is expected. Copy the full URL from the address bar, then:
+python strava_auth.py "<paste the redirect URL>"
+```
+This saves tokens to `data/strava_tokens.json` (gitignored). Token refresh is automatic
+on later fetches.
 
 ## Running a check-in
-1. **Fetch** recent activities via the Strava MCP (last ~6 weeks).
-2. **Store** them: write the raw JSON list to `data/activities/YYYY-MM-DD.json`
-   (today's date). Snapshots accumulate so trends work without re-fetching.
-3. **Compute** the numbers:
+1. **Fetch + store** recent activities (writes `data/activities/YYYY-MM-DD.json`;
+   snapshots accumulate so trends work without re-fetching):
+   ```bash
+   source .venv/bin/activate
+   python strava_fetch.py             # last 6 weeks (default)
+   ```
+2. **Compute** the numbers:
    ```bash
    source .venv/bin/activate
    python -c "import analytics, json; \
@@ -22,12 +35,12 @@ weeks = analytics.weekly_aggregates(acts); \
 print(json.dumps({k: vars(v) for k, v in sorted(weeks.items())}, indent=2)); \
 t = analytics.trend(weeks); print(vars(t) if t else 'no trend yet')"
    ```
-4. **Interpret**: load `coach.md` and deliver the check-in in that persona, using ONLY
-   the numbers printed in step 3.
+3. **Interpret**: load `coach.md` and deliver the check-in in that persona, using ONLY
+   the numbers printed in step 2.
 
 ## Running the bake-off (one-time decision)
 On the same stored snapshot:
-- **Arm A:** run step 3 above (Python numbers) → coach check-in.
+- **Arm A:** run the compute step above (Python numbers) → coach check-in.
 - **Arm B:** read the raw `data/activities/*.json` directly, compute the weekly numbers
   in-session (no `analytics.py`), → coach check-in.
 - **Grade:** Arm A's numbers are ground truth. Check whether Arm B's numbers match them.

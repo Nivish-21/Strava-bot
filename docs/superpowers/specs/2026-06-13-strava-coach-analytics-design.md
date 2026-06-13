@@ -151,3 +151,13 @@ Moved to `legacy/` (not deleted — kept until proven unnecessary):
 ## Open Questions
 
 None. Ready for implementation planning.
+
+## Correction (2026-06-14): data source is the direct Strava API, not the MCP
+
+The original design assumed the `claude.ai Strava` MCP connector was free. It is not —
+it is paywalled behind a subscription the user cannot pay. The free path is the **direct
+Strava v3 API** using the user's own registered app credentials (`STRAVA_CLIENT_ID` /
+`STRAVA_CLIENT_SECRET`), exactly as the retired `legacy/strava.py` did. Implemented as
+stdlib-only `strava_api.py` (+ `strava_auth.py`, `strava_fetch.py`). Everything else in
+this spec — the maths/judgement split, `analytics.py`, the coach persona, the bake-off —
+is unchanged. See `docs/lessons.md` for the root cause.
