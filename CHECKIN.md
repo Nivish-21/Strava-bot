@@ -47,5 +47,15 @@ On the same stored snapshot:
   Record, per metric, whether Arm B was exact / close / wrong, and which check-in reads
   better. The winner becomes the default; note it at the bottom of this file.
 
-### Bake-off result
-_TBD — fill in after the first real dataset is available._
+### Bake-off result (2026-06-14, 7 activities / 6 weeks)
+**Winner: Arm A (Python `analytics.py`) — default.**
+Arm A and Arm B produced identical numbers on all 6 weeks and the trend (Arm B matched
+ground truth exactly). Tie on accuracy *for this small set*, but Arm A is deterministically
+correct for zero effort and does not degrade as data grows, whereas Arm B's accuracy
+depends on careful manual computation each time. Use `analytics.py`.
+
+**Known limitation exposed by real data:** `weekly_aggregates`/`trend` mix all sport types
+(runs + walks) into one pace figure. With walks in the baseline, the trend reported
+`is_faster: True, pace_change -2.52` — an artefact, not real running improvement. Pace
+should be computed per sport_type (runs vs walks separately) before it is trustworthy.
+Coach interpretation must, for now, lean on per-run figures and ignore the mixed pace trend.
