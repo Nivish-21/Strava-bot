@@ -45,6 +45,8 @@ Pure functions, standard library only, fully unit-tested (`tests/test_analytics.
 - `load_activities(dir)` — read and dedupe stored snapshot JSON by activity id.
 - `week_key(start)` / `weekly_aggregates(activities)` — per-ISO-week count, distance,
   moving time, average pace, average heart rate (`WeekStats`).
+- `weekly_aggregates_by_sport(activities)` — same, split per `sport_type` (runs vs walks)
+  so pace stays comparable like-with-like. Use this for check-ins, not the mixed version.
 - `trend(weekly)` — compare the latest week against the mean of prior weeks (`Trend`).
 The numbers come from here so they are never hallucinated.
 

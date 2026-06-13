@@ -26,17 +26,23 @@ on later fetches.
    source .venv/bin/activate
    python strava_fetch.py             # last 6 weeks (default)
    ```
-2. **Compute** the numbers:
+2. **Compute** the numbers, split by sport so pace is comparable like-with-like:
    ```bash
    source .venv/bin/activate
-   python -c "import analytics, json; \
-acts = analytics.load_activities('data/activities'); \
-weeks = analytics.weekly_aggregates(acts); \
-print(json.dumps({k: vars(v) for k, v in sorted(weeks.items())}, indent=2)); \
-t = analytics.trend(weeks); print(vars(t) if t else 'no trend yet')"
+   python -c "
+import analytics
+acts = analytics.load_activities('data/activities')
+for sport, weeks in analytics.weekly_aggregates_by_sport(acts).items():
+    print(f'=== {sport} ===')
+    for k, v in sorted(weeks.items()):
+        print(f'  {k}: {v.activity_count} act, {v.total_distance_km}km, {v.avg_pace_min_per_km} min/km')
+    t = analytics.trend(weeks)
+    print('  TREND:', vars(t) if t else 'not enough weeks')
+"
    ```
 3. **Interpret**: load `coach.md` and deliver the check-in in that persona, using ONLY
-   the numbers printed in step 2.
+   the numbers printed in step 2. Read pace per sport — never compare a run week against
+   a walk week.
 
 ## Running the bake-off (one-time decision)
 On the same stored snapshot:
@@ -54,8 +60,8 @@ ground truth exactly). Tie on accuracy *for this small set*, but Arm A is determ
 correct for zero effort and does not degrade as data grows, whereas Arm B's accuracy
 depends on careful manual computation each time. Use `analytics.py`.
 
-**Known limitation exposed by real data:** `weekly_aggregates`/`trend` mix all sport types
-(runs + walks) into one pace figure. With walks in the baseline, the trend reported
-`is_faster: True, pace_change -2.52` — an artefact, not real running improvement. Pace
-should be computed per sport_type (runs vs walks separately) before it is trustworthy.
-Coach interpretation must, for now, lean on per-run figures and ignore the mixed pace trend.
+**Resolved (2026-06-14):** the first bake-off exposed that mixing runs + walks into one
+pace figure made a run week look `is_faster: True, pace_change -2.52` against walk weeks —
+an artefact. Fixed by `weekly_aggregates_by_sport` (used in the compute step above), which
+keeps each sport separate. Runs-only trend then read correctly (`pace_change +0.57,
+is_faster: False`). Always interpret pace per sport.
