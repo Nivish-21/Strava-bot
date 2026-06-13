@@ -72,3 +72,33 @@ def weekly_aggregates(activities: list[dict]) -> dict[str, WeekStats]:
             avg_heart_rate=round(avg_hr, 1) if avg_hr is not None else None,
         )
     return stats
+
+
+@dataclass(frozen=True)
+class Trend:
+    latest_week: str
+    count_delta: int
+    pace_change_min_per_km: float
+    is_more_consistent: bool
+    is_faster: bool
+
+
+def trend(weekly: dict[str, WeekStats], prior_weeks: int = 3) -> Trend | None:
+    """Compare the most recent week against the mean of up to `prior_weeks` before it.
+
+    Returns None when there is no prior week to compare against.
+    """
+    if len(weekly) < 2:
+        return None
+    ordered = [weekly[key] for key in sorted(weekly.keys())]
+    latest = ordered[-1]
+    priors = ordered[-(prior_weeks + 1) : -1]
+    avg_count = sum(w.activity_count for w in priors) / len(priors)
+    avg_pace = sum(w.avg_pace_min_per_km for w in priors) / len(priors)
+    return Trend(
+        latest_week=latest.week,
+        count_delta=latest.activity_count - round(avg_count),
+        pace_change_min_per_km=round(latest.avg_pace_min_per_km - avg_pace, 2),
+        is_more_consistent=latest.activity_count >= avg_count,
+        is_faster=latest.avg_pace_min_per_km < avg_pace,
+    )

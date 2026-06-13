@@ -1,7 +1,14 @@
 import json
 from pathlib import Path
 
-from analytics import load_activities, WeekStats, week_key, weekly_aggregates
+from analytics import (
+    load_activities,
+    WeekStats,
+    week_key,
+    weekly_aggregates,
+    Trend,
+    trend,
+)
 
 
 def _write_snapshot(directory: Path, name: str, activities: list[dict]) -> None:
@@ -68,3 +75,38 @@ def test_weekly_aggregates_skips_missing_hr() -> None:
     stats = weekly_aggregates(activities)
 
     assert stats["2026-W24"].avg_heart_rate is None
+
+
+def _week(week: str, count: int, pace: float) -> WeekStats:
+    return WeekStats(
+        week=week,
+        activity_count=count,
+        total_distance_km=10.0,
+        total_moving_time_min=pace * 10.0,
+        avg_pace_min_per_km=pace,
+        avg_heart_rate=150.0,
+    )
+
+
+def test_trend_detects_more_consistent_and_faster() -> None:
+    weekly = {
+        "2026-W22": _week("2026-W22", count=1, pace=6.5),
+        "2026-W23": _week("2026-W23", count=1, pace=6.4),
+        "2026-W24": _week("2026-W24", count=3, pace=6.0),
+    }
+
+    result = trend(weekly)
+
+    assert result == Trend(
+        latest_week="2026-W24",
+        count_delta=2,
+        pace_change_min_per_km=-0.45,
+        is_more_consistent=True,
+        is_faster=True,
+    )
+
+
+def test_trend_returns_none_without_prior_week() -> None:
+    weekly = {"2026-W24": _week("2026-W24", count=2, pace=6.0)}
+
+    assert trend(weekly) is None
