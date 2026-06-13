@@ -8,6 +8,8 @@ from analytics import (
     weekly_aggregates,
     Trend,
     trend,
+    filter_by_sport,
+    weekly_aggregates_by_sport,
 )
 
 
@@ -110,3 +112,51 @@ def test_trend_returns_none_without_prior_week() -> None:
     weekly = {"2026-W24": _week("2026-W24", count=2, pace=6.0)}
 
     assert trend(weekly) is None
+
+
+def test_filter_by_sport_uses_sport_type_with_type_fallback() -> None:
+    activities = [
+        {
+            "id": 1,
+            "sport_type": "Run",
+            "start_date_local": "2026-06-08T07:00:00Z",
+            "distance": 1000,
+            "moving_time": 300,
+        },
+        {
+            "id": 2,
+            "type": "Walk",  # legacy field, no sport_type
+            "start_date_local": "2026-06-08T07:00:00Z",
+            "distance": 500,
+            "moving_time": 300,
+        },
+    ]
+
+    assert [a["id"] for a in filter_by_sport(activities, "Run")] == [1]
+    assert [a["id"] for a in filter_by_sport(activities, "Walk")] == [2]
+
+
+def test_weekly_aggregates_by_sport_separates_types() -> None:
+    activities = [
+        {
+            "id": 1,
+            "sport_type": "Run",
+            "start_date_local": "2026-06-08T07:00:00Z",
+            "distance": 5000,
+            "moving_time": 1800,
+        },
+        {
+            "id": 2,
+            "sport_type": "Walk",
+            "start_date_local": "2026-06-08T07:00:00Z",
+            "distance": 1000,
+            "moving_time": 900,
+        },
+    ]
+
+    by_sport = weekly_aggregates_by_sport(activities)
+
+    assert set(by_sport.keys()) == {"Run", "Walk"}
+    assert by_sport["Run"]["2026-W24"].activity_count == 1
+    assert by_sport["Run"]["2026-W24"].avg_pace_min_per_km == 6.0
+    assert by_sport["Walk"]["2026-W24"].avg_pace_min_per_km == 15.0

@@ -40,6 +40,16 @@ def week_key(start_date_local: str) -> str:
     return f"{iso_year}-W{iso_week:02d}"
 
 
+def sport_of(activity: dict) -> str:
+    """The activity's sport, preferring the modern `sport_type` over legacy `type`."""
+    return activity.get("sport_type") or activity.get("type") or "Unknown"
+
+
+def filter_by_sport(activities: list[dict], sport_type: str) -> list[dict]:
+    """Keep only the activities of a single sport (e.g. 'Run', 'Walk')."""
+    return [a for a in activities if sport_of(a) == sport_type]
+
+
 def weekly_aggregates(activities: list[dict]) -> dict[str, WeekStats]:
     """Group activities by ISO week and compute summary stats per week.
 
@@ -102,3 +112,17 @@ def trend(weekly: dict[str, WeekStats], prior_weeks: int = 3) -> Trend | None:
         is_more_consistent=latest.activity_count >= avg_count,
         is_faster=latest.avg_pace_min_per_km < avg_pace,
     )
+
+
+def weekly_aggregates_by_sport(
+    activities: list[dict],
+) -> dict[str, dict[str, WeekStats]]:
+    """Per-sport weekly stats: {sport_type: {week: WeekStats}}.
+
+    Splitting by sport keeps pace comparable like-with-like; mixing runs and walks
+    into one pace figure produces misleading trends.
+    """
+    sports = sorted({sport_of(a) for a in activities})
+    return {
+        sport: weekly_aggregates(filter_by_sport(activities, sport)) for sport in sports
+    }
