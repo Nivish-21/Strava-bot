@@ -1,5 +1,64 @@
 # Strava AI Coach — Telegram Bot
 
+> [!IMPORTANT]
+> **Project status: archived after Strava's June 2026 developer-platform changes.**
+> This repository preserves the original side project and its engineering history. The live
+> Strava-to-AI integration is no longer maintained or offered as a working public service.
+
+## What this project was
+
+I built Strava AI Coach as a side project that turned a runner's activity history into useful,
+conversational coaching inside Telegram. It authenticated each athlete with OAuth, refreshed and
+persisted their tokens, fetched activities and detailed streams, calculated pace and training
+trends, and passed a structured training summary to a local Ollama/Gemma model.
+
+The goal was not another activity dashboard. It was a personal coach that could explain what the
+numbers meant and give the athlete a practical next step. The project combined an asynchronous
+Telegram bot, a typed Strava client, SQLite persistence, deterministic fitness calculations, and a
+local LLM workflow.
+
+## Why the live version ended
+
+Strava changed its developer platform on 1 June 2026. The API itself is still described as having
+no per-request charge, but Standard Tier developer access now carries a Strava subscription
+requirement. More importantly, the new policy prohibits using data obtained through the Strava API
+for AI operation or analytics and limits how that data may be retained.
+
+Those restrictions cut across the core purpose of this project: retrieving activity history,
+calculating trends, retaining snapshots, and using the resulting training context to generate an AI
+coaching response. This was not a normal API-version migration that could be repaired by changing an
+endpoint. The platform rules made the original live-data design nonviable.
+
+Official sources:
+
+- [Strava API Agreement](https://www.strava.com/legal/api)
+- [Strava API Policy](https://www.strava.com/legal/api_policy)
+- [Strava developer access and subscription requirements](https://developers.strava.com/docs/getting-started/)
+
+## What remains valuable
+
+I am keeping this repository public because I was proud of the project. Its shutdown is also an
+honest example of platform risk: working application code cannot override a provider's business
+model or data-use rules.
+
+The external dependency changed; the engineering work did not disappear. This repository still
+demonstrates:
+
+- OAuth 2.0 authorisation and short-lived token refresh.
+- Per-user credential persistence with SQLite.
+- Asynchronous API and Telegram integration.
+- Activity-stream processing, pace analysis, heart-rate zones, and trend calculations.
+- Separation of deterministic calculations from generated coaching output.
+- Explicit handling for API failures, expired credentials, caching, and long Telegram messages.
+
+The original Telegram and Ollama implementation is retained in [`legacy/`](legacy/). The root of
+the repository contains a later personal check-in experiment. The setup instructions below describe
+the original bot for historical reference and are **not expected to run from a fresh clone today**.
+
+---
+
+## Historical project documentation
+
 A Telegram bot that pulls your Strava running data and displays detailed stats: km splits, pace trends, heart rate zones, monthly summaries, and all-time totals. Built to feed rich data into a local LLM (Ollama/Gemma) for coaching insights.
 
 ## Features
